@@ -1,7 +1,7 @@
 from chargement import charger_donnees
 from nettoyage import nettoyer_noms_colonnes, convertir_colonnes_numeriques
 from analyse import top_10_departements, grandes_categories
-from graphiques import graphique_top_departements, graphique_categories
+from export_excel import exporter_excel
 
 
 # Chemins des fichiers
@@ -27,13 +27,18 @@ def main():
     print("\nGrandes catégories :")
     print(categories)
 
-    # 5. Créer les graphiques
-    graphique_top_departements(top_departements)
-    graphique_categories(categories)
+
+    # 6. Créer le fichier Excel dynamique
+    exporter_excel(df, top_departements, categories)
 
     print("\nProjet exécuté avec succès.")
 
 
 if __name__ == "__main__":
     main()
+
+
+
+
     
+
