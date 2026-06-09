@@ -20,11 +20,7 @@ Les données proviennent du site data.gouv.fr :
 
 https://www.data.gouv.fr/datasets/interventions-realisees-par-les-services-d-incendie-et-de-secours
 
-Le fichier utilisé est :
-
-```text
-interventions2023.csv
-```
+Le fichier utilisé contient les interventions réalisées par les services de secours en France en 2023.
 
 Le jeu de données contient 99 lignes et 71 colonnes.
 
@@ -49,15 +45,35 @@ Le jeu de données contient 99 lignes et 71 colonnes.
 
 L'objectif est de produire automatiquement un tableau de bord Excel à partir des données brutes.
 
-Le script Python permet de :
+Le script Python permet :
 
-* charger les données ;
-* nettoyer les colonnes ;
-* convertir les valeurs numériques ;
-* réaliser plusieurs analyses ;
-* calculer des indicateurs ;
-* créer des filtres ;
-* générer un tableau de bord Excel dynamique.
+* de charger les données ;
+* de nettoyer les colonnes ;
+* de convertir les valeurs numériques ;
+* de générer automatiquement un fichier Excel ;
+* de créer un tableau de bord avec filtres, KPI et graphiques.
+
+Les calculs du tableau de bord sont réalisés directement dans Excel à l'aide de formules.
+
+---
+
+## Schéma du projet
+
+```text
+Données brutes
+      ↓
+Chargement des données
+      ↓
+Nettoyage des données
+      ↓
+Création du fichier Excel
+      ↓
+Formules Excel
+      ↓
+Graphiques Excel
+      ↓
+Tableau de bord final
+```
 
 ---
 
@@ -65,18 +81,36 @@ Le script Python permet de :
 
 Le fichier Excel généré contient :
 
-* un tableau de bord principal ;
-* des indicateurs KPI ;
-* des filtres par région et catégorie ;
-* un classement des départements ;
-* des graphiques dynamiques ;
-* les données nettoyées utilisées pour les calculs.
+* une feuille de données nettoyées ;
+* une feuille de calculs ;
+* un tableau de bord ;
+* des KPI ;
+* des filtres ;
+* des graphiques dynamiques.
 
-Le fichier final généré est :
+Les calculs restent visibles dans Excel afin que l'utilisateur puisse comprendre et réutiliser le fichier.
 
-```text
-outputs/reporting_interventions_2023.xlsx
-```
+---
+
+## Fonctionnement du tableau de bord
+
+Le tableau de bord utilise :
+
+* des listes déroulantes ;
+* des formules Excel ;
+* des graphiques Excel ;
+* des indicateurs calculés automatiquement.
+
+Les principales fonctions utilisées sont :
+
+* SUMIFS ;
+* IF ;
+* INDEX ;
+* MATCH ;
+* LARGE ;
+* COUNTIF.
+
+Les graphiques sont alimentés directement par les cellules de calcul Excel.
 
 ---
 
@@ -92,7 +126,7 @@ cd projet-interventions-2023
 Installer les dépendances :
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ---
@@ -102,14 +136,10 @@ pip install -r requirements.txt
 Lancer le projet :
 
 ```bash
-python src/main.py
+uv run firerescuedash
 ```
 
-Le fichier Excel est automatiquement créé dans :
-
-```text
-outputs/reporting_interventions_2023.xlsx
-```
+Le fichier Excel est généré automatiquement dans le dossier de sortie.
 
 ---
 
@@ -117,34 +147,30 @@ outputs/reporting_interventions_2023.xlsx
 
 ```text
 projet-interventions-2023/
-├── data/
-│   └── interventions2023.csv
-│
-├── outputs/
-│   └── reporting_interventions_2023.xlsx
+├── pyproject.toml
+├── uv.lock
+├── README.md
 │
 ├── notebooks/
 │   └── 01_exploration.ipynb
 │
-├── src/
-│   ├── analyse.py
-│   ├── chargement.py
-│   ├── export_excel.py
-│   ├── main.py
-│   └── nettoyage.py
-│
-├── README.md
-├── requirements.txt
-└── .gitignore
+└── src/
+    └── firerescuedash/
+        ├── __init__.py
+        ├── analyse.py
+        ├── data.py
+        ├── export_excel.py
+        ├── main.py
+        └── nettoyage.py
 ```
 
 ---
 
 ## Rôle de chaque fichier
 
-### chargement.py
+### data.py
 
-Charge le fichier CSV dans un DataFrame pandas.
+Charge les données.
 
 ### nettoyage.py
 
@@ -152,26 +178,21 @@ Nettoie les noms de colonnes et convertit les colonnes numériques.
 
 ### analyse.py
 
-Réalise les calculs et produit les indicateurs utilisés dans le tableau de bord.
+Contient les fonctions d'analyse utilisées pendant l'exploration des données.
 
 ### export_excel.py
 
-Construit l'ensemble du fichier Excel :
+Construit le fichier Excel :
 
-* feuilles de calcul ;
-* filtres ;
+* feuilles ;
+* formules ;
 * KPI ;
 * graphiques ;
 * tableau de bord.
 
 ### main.py
 
-Lance l'ensemble du projet :
-
-* chargement ;
-* nettoyage ;
-* analyse ;
-* génération du fichier Excel.
+Lance le projet complet.
 
 ---
 
@@ -179,4 +200,9 @@ Lance l'ensemble du projet :
 
 * pandas
 * openpyxl
+* uv
+* openpyxl.chart
+
+```
+```
 
