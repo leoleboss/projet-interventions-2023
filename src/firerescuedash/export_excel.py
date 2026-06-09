@@ -1,77 +1,206 @@
-import pandas as pd
-from openpyxl import load_workbook
+import os
+
+from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.chart.text import RichText
-from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties
 
 
-def exporter_excel(df, top_departements, categories):
+def trouver_colonne(colonnes, mot):
+    """
+    Trouve une colonne à partir d'un morceau de son nom.
+    """
+    for colonne in colonnes:
+        if mot in colonne:
+            return colonne
+    raise ValueError(f"Colonne contenant '{mot}' introuvable.")
+
+
+def largeur_colonnes(feuille, largeur=16):
+    """
+    Applique une largeur simple aux colonnes.
+    """
+    for col in range(1, 15):
+        feuille.column_dimensions[get_column_letter(col)].width = largeur
+
+
+def exporter_excel(df):
+    """
+    Crée un fichier Excel avec :
+    - une feuille de données nettoyées ;
+    - une feuille de calculs avec des formules Excel ;
+    - un tableau de bord avec filtres, KPI et graphiques.
+    """
+
+    os.makedirs("outputs", exist_ok=True)
     chemin_sortie = "outputs/reporting_interventions_2023.xlsx"
 
-    colonne_region = [col for col in df.columns if "gion" in col][0]
-    colonne_departement = [col for col in df.columns if "partement" in col][0]
+    # Colonnes importantes
+    colonnes = list(df.columns)
 
-    regions_uniques = ["Toutes"] + sorted(df[colonne_region].dropna().unique())
-    categories_uniques = [
-        "Toutes",
-        "Incendies",
-        "Secours à personne",
-        "Accidents",
-        "Opérations diverses"
-    ]
+    colonne_region = trouver_colonne(colonnes, "gion")
+    colonne_departement = trouver_colonne(colonnes, "partement")
 
-    departements_uniques = sorted(df[colonne_departement].dropna().unique())
+    # Colonnes utilisées pour les calculs
+    colonnes_categories = {
+        "Incendies": "incendies",
+        "Secours à personne": "secours_�_personne",
+        "Accidents": "accidents_de_circulation",
+        "Opérations diverses": "op�rations_diverses",
+    }
 
-    filtres_df = pd.DataFrame({
-        "regions": pd.Series(regions_uniques),
-        "categories": pd.Series(categories_uniques)
-    })
+    # Création du classeur
+    workbook = Workbook()
 
-    calcul_df = pd.DataFrame({
-        "departement": departements_uniques
-    })
+    # Feuilles
+    dashboard = workbook.active
+    dashboard.title = "tableau_de_bord"
 
-    with pd.ExcelWriter(chemin_sortie, engine="openpyxl") as writer:
-        df.to_excel(writer, sheet_name="donnees_nettoyees", index=False)
-        filtres_df.to_excel(writer, sheet_name="listes_filtres", index=False)
-        calcul_df.to_excel(writer, sheet_name="calcul_dashboard", index=False)
+    donnees = workbook.create_sheet("donnees_nettoyees")
+    calculs = workbook.create_sheet("calculs")
+    listes = workbook.create_sheet("listes_filtres")
 
-    workbook = load_workbook(chemin_sortie)
+    # ------------------------------------------------------------------
+    # 1. Écriture des données nettoyées
+    # ------------------------------------------------------------------
 
-    dashboard = workbook.create_sheet("tableau_de_bord", 0)
-    feuille_filtres = workbook["listes_filtres"]
-    feuille_calcul = workbook["calcul_dashboard"]
-    feuille_donnees = workbook["donnees_nettoyees"]
+    for col_index, nom_colonne in enumerate(df.columns, start=1):
+        donnees.cell(row=1, column=col_index).value = nom_colonne
+
+    for row_index, ligne in enumerate(df.itertuples(index=False), start=2):
+        for col_index, valeur in enumerate(ligne, start=1):
+            donnees.cell(row=row_index, column=col_index).value = valeur
+
+    donnees.auto_filter.ref = donnees.dimensions
+
+    derniere_ligne_donnees = donnees.max_row
+
+    # Récupérer les lettres Excel des colonnes utiles
+    index_region = colonnes.index(colonne_region) + 1
+    index_departement = colonnes.index(colonne_departement) + 1
+
+    lettre_region = get_column_letter(index_region)
+    lettre_departement = get_column_letter(index_departement)
+
+    lettres_categories = {}
+    for nom_categorie, colonne_df in colonnes_categories.items():
+        index_colonne = colonnes.index(colonne_df) + 1
+        lettres_categories[nom_categorie] = get_column_letter(index_colonne)
+
+    # ------------------------------------------------------------------
+    # 2. Listes de filtres
+    # ------------------------------------------------------------------
+
+    regions = ["Toutes"] + sorted(set(df[colonne_region].dropna()))
+    categories = ["Toutes"] + list(colonnes_categories.keys())
+
+    listes["A1"] = "regions"
+    for i, region in enumerate(regions, start=2):
+        listes[f"A{i}"] = region
+
+    listes["B1"] = "categories"
+    for i, categorie in enumerate(categories, start=2):
+        listes[f"B{i}"] = categorie
+
+    # ------------------------------------------------------------------
+    # 3. Feuille calculs avec formules Excel
+    # ------------------------------------------------------------------
+
+    calculs["A1"] = "departement"
+    calculs["B1"] = "incendies"
+    calculs["C1"] = "secours_personne"
+    calculs["D1"] = "accidents"
+    calculs["E1"] = "operations_diverses"
+    calculs["F1"] = "total_filtre"
+
+    departements = sorted(set(df[colonne_departement].dropna()))
+
+    for ligne, departement in enumerate(departements, start=2):
+        calculs[f"A{ligne}"] = departement
+
+        calculs[f"B{ligne}"] = (
+            f'=SUMIFS(donnees_nettoyees!${lettres_categories["Incendies"]}$2:${lettres_categories["Incendies"]}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_departement}$2:${lettre_departement}${derniere_ligne_donnees},A{ligne},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
+        )
+
+        calculs[f"C{ligne}"] = (
+            f'=SUMIFS(donnees_nettoyees!${lettres_categories["Secours à personne"]}$2:${lettres_categories["Secours à personne"]}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_departement}$2:${lettre_departement}${derniere_ligne_donnees},A{ligne},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
+        )
+
+        calculs[f"D{ligne}"] = (
+            f'=SUMIFS(donnees_nettoyees!${lettres_categories["Accidents"]}$2:${lettres_categories["Accidents"]}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_departement}$2:${lettre_departement}${derniere_ligne_donnees},A{ligne},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
+        )
+
+        calculs[f"E{ligne}"] = (
+            f'=SUMIFS(donnees_nettoyees!${lettres_categories["Opérations diverses"]}$2:${lettres_categories["Opérations diverses"]}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_departement}$2:${lettre_departement}${derniere_ligne_donnees},A{ligne},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
+        )
+
+        calculs[f"F{ligne}"] = (
+            f'=IF(tableau_de_bord!$F$6="Toutes",SUM(B{ligne}:E{ligne}),'
+            f'IF(tableau_de_bord!$F$6="Incendies",B{ligne},'
+            f'IF(tableau_de_bord!$F$6="Secours à personne",C{ligne},'
+            f'IF(tableau_de_bord!$F$6="Accidents",D{ligne},'
+            f'IF(tableau_de_bord!$F$6="Opérations diverses",E{ligne},0)))))'
+        )
+
+    derniere_ligne_calculs = len(departements) + 1
+
+    # Calculs des grandes catégories
+    calculs["H1"] = "categorie"
+    calculs["I1"] = "interventions"
+
+    for ligne, (categorie, colonne_lettre) in enumerate(lettres_categories.items(), start=2):
+        calculs[f"H{ligne}"] = categorie
+        calculs[f"I{ligne}"] = (
+            f'=IF(tableau_de_bord!$F$6="Toutes",'
+            f'SUMIFS(donnees_nettoyees!${colonne_lettre}$2:${colonne_lettre}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},'
+            f'IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6)),'
+            f'IF(tableau_de_bord!$F$6=H{ligne},'
+            f'SUMIFS(donnees_nettoyees!${colonne_lettre}$2:${colonne_lettre}${derniere_ligne_donnees},'
+            f'donnees_nettoyees!${lettre_region}$2:${lettre_region}${derniere_ligne_donnees},'
+            f'IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6)),0))'
+        )
+
+    # ------------------------------------------------------------------
+    # 4. Mise en forme du tableau de bord
+    # ------------------------------------------------------------------
 
     rouge = "A61C1C"
     rouge_clair = "FCE5E5"
     gris_clair = "F3F3F3"
 
+    remplissage_rouge = PatternFill("solid", fgColor=rouge)
+    remplissage_rouge_clair = PatternFill("solid", fgColor=rouge_clair)
+    remplissage_gris = PatternFill("solid", fgColor=gris_clair)
 
     titre_font = Font(size=18, bold=True, color="FFFFFF")
     sous_titre_font = Font(size=11, bold=True, color="FFFFFF")
     kpi_font = Font(size=12, bold=True)
     valeur_kpi_font = Font(size=15, bold=True)
 
-    remplissage_rouge = PatternFill("solid", fgColor=rouge)
-    remplissage_rouge_clair = PatternFill("solid", fgColor=rouge_clair)
-    remplissage_gris = PatternFill("solid", fgColor=gris_clair)
-
     bordure = Border(
         left=Side(style="thin", color=rouge),
         right=Side(style="thin", color=rouge),
         top=Side(style="thin", color=rouge),
-        bottom=Side(style="thin", color=rouge)
-)
+        bottom=Side(style="thin", color=rouge),
+    )
 
-    for col in range(1, 15):
-        dashboard.column_dimensions[chr(64 + col)].width = 16
+    largeur_colonnes(dashboard)
+    largeur_colonnes(calculs)
+    largeur_colonnes(donnees)
 
     dashboard.merge_cells("A1:N2")
-    dashboard["A1"] = "Tableau de bord - Interventions des secours en 2023"
+    dashboard["A1"] = "TABLEAU DE BORD - INTERVENTIONS DES SERVICES DE SECOURS 2023"
     dashboard["A1"].fill = remplissage_rouge
     dashboard["A1"].font = titre_font
     dashboard["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -98,16 +227,17 @@ def exporter_excel(df, top_departements, categories):
         dashboard[cellule].alignment = Alignment(horizontal="center")
         dashboard[cellule].border = bordure
 
+    # Listes déroulantes
     validation_region = DataValidation(
         type="list",
-        formula1=f"'listes_filtres'!$A$2:$A${feuille_filtres.max_row}",
-        allow_blank=False
+        formula1=f"'listes_filtres'!$A$2:$A${len(regions) + 1}",
+        allow_blank=False,
     )
 
     validation_categorie = DataValidation(
         type="list",
-        formula1="'listes_filtres'!$B$2:$B$6",
-        allow_blank=False
+        formula1=f"'listes_filtres'!$B$2:$B${len(categories) + 1}",
+        allow_blank=False,
     )
 
     dashboard.add_data_validation(validation_region)
@@ -116,58 +246,9 @@ def exporter_excel(df, top_departements, categories):
     validation_region.add(dashboard["C6"])
     validation_categorie.add(dashboard["F6"])
 
-    critere_region = 'IF($C$6="Toutes","*",$C$6)'
-
-    # Colonnes Excel utiles
-    # C = région
-    # E = département
-    # R = incendies
-    # AM = secours à personne
-    # AS = accidents de circulation
-    # BR = opérations diverses
-    # BS = total interventions
-
-    feuille_calcul["B1"] = "incendies"
-    feuille_calcul["C1"] = "secours_personne"
-    feuille_calcul["D1"] = "accidents"
-    feuille_calcul["E1"] = "operations_diverses"
-    feuille_calcul["F1"] = "total_filtre"
-
-    for ligne in range(2, feuille_calcul.max_row + 1):
-        departement_cellule = f"A{ligne}"
-
-        feuille_calcul[f"B{ligne}"] = (
-            f'=SUMIFS(donnees_nettoyees!$R$2:$R$200,'
-            f'donnees_nettoyees!$E$2:$E$200,{departement_cellule},'
-            f'donnees_nettoyees!$C$2:$C$200,IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
-        )
-
-        feuille_calcul[f"C{ligne}"] = (
-            f'=SUMIFS(donnees_nettoyees!$AM$2:$AM$200,'
-            f'donnees_nettoyees!$E$2:$E$200,{departement_cellule},'
-            f'donnees_nettoyees!$C$2:$C$200,IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
-        )
-
-        feuille_calcul[f"D{ligne}"] = (
-            f'=SUMIFS(donnees_nettoyees!$AS$2:$AS$200,'
-            f'donnees_nettoyees!$E$2:$E$200,{departement_cellule},'
-            f'donnees_nettoyees!$C$2:$C$200,IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
-        )
-
-        feuille_calcul[f"E{ligne}"] = (
-            f'=SUMIFS(donnees_nettoyees!$BR$2:$BR$200,'
-            f'donnees_nettoyees!$E$2:$E$200,{departement_cellule},'
-            f'donnees_nettoyees!$C$2:$C$200,IF(tableau_de_bord!$C$6="Toutes","*",tableau_de_bord!$C$6))'
-        )
-
-        feuille_calcul[f"F{ligne}"] = (
-            f'=IF(tableau_de_bord!$F$6="Toutes",'
-            f'SUM(B{ligne}:E{ligne}),'
-            f'IF(tableau_de_bord!$F$6="Incendies",B{ligne},'
-            f'IF(tableau_de_bord!$F$6="Secours à personne",C{ligne},'
-            f'IF(tableau_de_bord!$F$6="Accidents",D{ligne},'
-            f'IF(tableau_de_bord!$F$6="Opérations diverses",E{ligne},0)))))'
-        )
+    # ------------------------------------------------------------------
+    # 5. Tableaux visibles du dashboard avec formules Excel
+    # ------------------------------------------------------------------
 
     dashboard["A9"] = "Top 10 départements"
     dashboard["A9"].fill = remplissage_rouge
@@ -176,18 +257,22 @@ def exporter_excel(df, top_departements, categories):
     dashboard["A10"] = "Département"
     dashboard["B10"] = "Interventions"
 
-    for i in range(1, 11):
-        ligne_dashboard = 10 + i
-        dashboard[f"B{ligne_dashboard}"] = f'=LARGE(calcul_dashboard!$F$2:$F$200,{i})'
-        dashboard[f"A{ligne_dashboard}"] = (
-            f'=INDEX(calcul_dashboard!$A$2:$A$200,'
-            f'MATCH(B{ligne_dashboard},calcul_dashboard!$F$2:$F$200,0))'
-        )
-
     for cellule in ["A10", "B10"]:
         dashboard[cellule].fill = remplissage_gris
         dashboard[cellule].font = Font(bold=True)
         dashboard[cellule].border = bordure
+
+    for i in range(1, 11):
+        ligne_dashboard = 10 + i
+
+        dashboard[f"B{ligne_dashboard}"] = (
+            f'=LARGE(calculs!$F$2:$F${derniere_ligne_calculs},{i})'
+        )
+
+        dashboard[f"A{ligne_dashboard}"] = (
+            f'=INDEX(calculs!$A$2:$A${derniere_ligne_calculs},'
+            f'MATCH(B{ligne_dashboard},calculs!$F$2:$F${derniere_ligne_calculs},0))'
+        )
 
     dashboard["D9"] = "Grandes catégories"
     dashboard["D9"].fill = remplissage_rouge
@@ -196,37 +281,25 @@ def exporter_excel(df, top_departements, categories):
     dashboard["D10"] = "Catégorie"
     dashboard["E10"] = "Interventions"
 
-    categories_lignes = [
-        ("Incendies", "R"),
-        ("Secours à personne", "AM"),
-        ("Accidents", "AS"),
-        ("Opérations diverses", "BR")
-    ]
-
-    for index, (nom, colonne_excel) in enumerate(categories_lignes, start=11):
-        dashboard.cell(row=index, column=4).value = nom
-        dashboard.cell(row=index, column=5).value = (
-            f'=IF($F$6="Toutes",'
-            f'SUMIFS(donnees_nettoyees!${colonne_excel}$2:${colonne_excel}$200,'
-            f'donnees_nettoyees!$C$2:$C$200,{critere_region}),'
-            f'IF($F$6=D{index},'
-            f'SUMIFS(donnees_nettoyees!${colonne_excel}$2:${colonne_excel}$200,'
-            f'donnees_nettoyees!$C$2:$C$200,{critere_region}),0))'
-        )
-
     for cellule in ["D10", "E10"]:
         dashboard[cellule].fill = remplissage_gris
         dashboard[cellule].font = Font(bold=True)
         dashboard[cellule].border = bordure
 
+    for ligne in range(2, 6):
+        ligne_dashboard = ligne + 9
+        dashboard[f"D{ligne_dashboard}"] = f"=calculs!H{ligne}"
+        dashboard[f"E{ligne_dashboard}"] = f"=calculs!I{ligne}"
+
+    # KPI
     kpis = {
-        "J9": ("Total interventions", '=SUM(E11:E14)'),
-        "L9": ("Département n°1", '=A11'),
+        "J9": ("Total interventions", "=SUM(E11:E14)"),
+        "L9": ("Département n°1", "=A11"),
         "J13": ("Part secours à personne", '=IF(J10=0,0,E12/J10)'),
-        "L13": ("Moyenne / département", '=IF(COUNTIF(B11:B20,">0")=0,0,J10/COUNTIF(B11:B20,">0"))')
+        "L13": ("Moyenne / département", '=IF(COUNTIF(B11:B20,">0")=0,0,J10/COUNTIF(B11:B20,">0"))'),
     }
 
-    for position, (nom, valeur) in kpis.items():
+    for position, (nom, formule) in kpis.items():
         dashboard[position] = nom
         dashboard[position].fill = remplissage_rouge_clair
         dashboard[position].font = kpi_font
@@ -235,21 +308,20 @@ def exporter_excel(df, top_departements, categories):
 
         cellule_valeur = dashboard.cell(
             row=dashboard[position].row + 1,
-            column=dashboard[position].column
+            column=dashboard[position].column,
         )
-        cellule_valeur.value = valeur
+        cellule_valeur.value = formule
         cellule_valeur.font = valeur_kpi_font
         cellule_valeur.alignment = Alignment(horizontal="center")
         cellule_valeur.border = bordure
 
-    dashboard["J14"].number_format = "0.0%"
+    # ------------------------------------------------------------------
+    # 6. Graphiques Excel basés sur les formules
+    # ------------------------------------------------------------------
 
     graphique_top = BarChart()
     graphique_top.type = "bar"
-    graphique_top.style = 10
     graphique_top.title = "Top 10 départements"
-    graphique_top.y_axis.title = ""
-    graphique_top.x_axis.title = ""
     graphique_top.legend = None
     graphique_top.height = 8
     graphique_top.width = 18
@@ -262,10 +334,7 @@ def exporter_excel(df, top_departements, categories):
 
     graphique_top.dLbls = DataLabelList()
     graphique_top.dLbls.showVal = True
-    graphique_top.dLbls.showCatName = True
-    graphique_top.dLbls.showSerName = False
-    graphique_top.dLbls.showLegendKey = False
-    graphique_top.dLbls.numFmt = '#,##0'
+    graphique_top.dLbls.numFmt = "#,##0"
 
     dashboard.add_chart(graphique_top, "A25")
 
@@ -282,31 +351,15 @@ def exporter_excel(df, top_departements, categories):
 
     graphique_categories.dLbls = DataLabelList()
     graphique_categories.dLbls.showPercent = True
-    graphique_categories.dLbls.showVal = False
-    graphique_categories.dLbls.showCatName = False
-    graphique_categories.dLbls.showSerName = False
-    graphique_categories.dLbls.showLegendKey = False
     graphique_categories.legend.position = "b"
-
-    graphique_categories.dLbls.txPr = RichText(
-        p=[
-            Paragraph(
-                pPr=ParagraphProperties(
-                    defRPr=CharacterProperties(
-                        solidFill="FFFFFF",
-                        b=True
-                    )
-                )
-            )
-        ]
-    )
 
     dashboard.add_chart(graphique_categories, "I25")
 
-    format_nombre = '#,##0'
+    # ------------------------------------------------------------------
+    # 7. Formats et options Excel
+    # ------------------------------------------------------------------
 
-    for cellule in ["J10", "L14"]:
-        dashboard[cellule].number_format = format_nombre
+    format_nombre = "#,##0"
 
     for ligne in range(11, 21):
         dashboard[f"B{ligne}"].number_format = format_nombre
@@ -314,21 +367,22 @@ def exporter_excel(df, top_departements, categories):
     for ligne in range(11, 15):
         dashboard[f"E{ligne}"].number_format = format_nombre
 
-    for ligne in feuille_donnees.iter_rows(min_row=2):
-        for cellule in ligne:
-            if isinstance(cellule.value, (int, float)):
-                cellule.number_format = format_nombre
+    dashboard["J10"].number_format = format_nombre
+    dashboard["J14"].number_format = "0.0%"
+    dashboard["L14"].number_format = format_nombre
 
-    feuille_donnees.auto_filter.ref = feuille_donnees.dimensions
+    for feuille in [donnees, calculs]:
+        for ligne in feuille.iter_rows():
+            for cellule in ligne:
+                if isinstance(cellule.value, (int, float)):
+                    cellule.number_format = format_nombre
 
-    feuille_filtres.sheet_state = "hidden"
-    feuille_calcul.sheet_state = "hidden"
+    listes.sheet_state = "hidden"
 
     workbook.calculation.fullCalcOnLoad = True
     workbook.calculation.forceFullCalc = True
 
     workbook.save(chemin_sortie)
 
-    print("Fichier Excel créé avec tableau de bord dynamique :", chemin_sortie)
-
+    print("Fichier Excel créé avec formules Excel :", chemin_sortie)
     

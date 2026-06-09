@@ -1,44 +1,21 @@
 from firerescuedash.data import charger_donnees
 from firerescuedash.nettoyage import nettoyer_noms_colonnes, convertir_colonnes_numeriques
-from firerescuedash.analyse import top_10_departements, grandes_categories
 from firerescuedash.export_excel import exporter_excel
 
 
-# Chemins des fichiers
 CHEMIN_DONNEES = "data/interventions2023.csv"
 
 
 def main():
-    # 1. Charger les données
     df = charger_donnees(CHEMIN_DONNEES)
 
-    # 2. Nettoyer les données
     df = nettoyer_noms_colonnes(df)
     df = convertir_colonnes_numeriques(df)
 
-    # 3. Faire les analyses
-    top_departements = top_10_departements(df)
-    categories = grandes_categories(df)
-
-    # 4. Afficher les résultats
-    print("\nTop 10 départements :")
-    print(top_departements)
-
-    print("\nGrandes catégories :")
-    print(categories)
-
-
-    # 6. Créer le fichier Excel dynamique
-    exporter_excel(df, top_departements, categories)
+    exporter_excel(df)
 
     print("\nProjet exécuté avec succès.")
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-    
-
