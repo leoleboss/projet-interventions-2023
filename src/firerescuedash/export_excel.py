@@ -46,38 +46,39 @@ def exporter_excel(df, top_departements, categories):
     feuille_calcul = workbook["calcul_dashboard"]
     feuille_donnees = workbook["donnees_nettoyees"]
 
-    vert = "6AA84F"
-    vert_clair = "D9EAD3"
+    rouge = "A61C1C"
+    rouge_clair = "FCE5E5"
     gris_clair = "F3F3F3"
+
 
     titre_font = Font(size=18, bold=True, color="FFFFFF")
     sous_titre_font = Font(size=11, bold=True, color="FFFFFF")
     kpi_font = Font(size=12, bold=True)
     valeur_kpi_font = Font(size=15, bold=True)
 
-    remplissage_vert = PatternFill("solid", fgColor=vert)
-    remplissage_vert_clair = PatternFill("solid", fgColor=vert_clair)
+    remplissage_rouge = PatternFill("solid", fgColor=rouge)
+    remplissage_rouge_clair = PatternFill("solid", fgColor=rouge_clair)
     remplissage_gris = PatternFill("solid", fgColor=gris_clair)
 
     bordure = Border(
-        left=Side(style="thin", color=vert),
-        right=Side(style="thin", color=vert),
-        top=Side(style="thin", color=vert),
-        bottom=Side(style="thin", color=vert)
-    )
+        left=Side(style="thin", color=rouge),
+        right=Side(style="thin", color=rouge),
+        top=Side(style="thin", color=rouge),
+        bottom=Side(style="thin", color=rouge)
+)
 
     for col in range(1, 15):
         dashboard.column_dimensions[chr(64 + col)].width = 16
 
     dashboard.merge_cells("A1:N2")
     dashboard["A1"] = "Tableau de bord - Interventions des secours en 2023"
-    dashboard["A1"].fill = remplissage_vert
+    dashboard["A1"].fill = remplissage_rouge
     dashboard["A1"].font = titre_font
     dashboard["A1"].alignment = Alignment(horizontal="center", vertical="center")
 
     dashboard.merge_cells("A4:N5")
     dashboard["A4"] = "Zone de filtres"
-    dashboard["A4"].fill = remplissage_vert_clair
+    dashboard["A4"].fill = remplissage_rouge_clair
     dashboard["A4"].alignment = Alignment(horizontal="center", vertical="center")
 
     dashboard["B6"] = "Filtre région"
@@ -87,7 +88,7 @@ def exporter_excel(df, top_departements, categories):
     dashboard["F6"] = "Toutes"
 
     for cellule in ["B6", "E6"]:
-        dashboard[cellule].fill = remplissage_vert
+        dashboard[cellule].fill = remplissage_rouge
         dashboard[cellule].font = Font(bold=True, color="FFFFFF")
         dashboard[cellule].alignment = Alignment(horizontal="center")
         dashboard[cellule].border = bordure
@@ -169,7 +170,7 @@ def exporter_excel(df, top_departements, categories):
         )
 
     dashboard["A9"] = "Top 10 départements"
-    dashboard["A9"].fill = remplissage_vert
+    dashboard["A9"].fill = remplissage_rouge
     dashboard["A9"].font = sous_titre_font
 
     dashboard["A10"] = "Département"
@@ -189,7 +190,7 @@ def exporter_excel(df, top_departements, categories):
         dashboard[cellule].border = bordure
 
     dashboard["D9"] = "Grandes catégories"
-    dashboard["D9"].fill = remplissage_vert
+    dashboard["D9"].fill = remplissage_rouge
     dashboard["D9"].font = sous_titre_font
 
     dashboard["D10"] = "Catégorie"
@@ -227,7 +228,7 @@ def exporter_excel(df, top_departements, categories):
 
     for position, (nom, valeur) in kpis.items():
         dashboard[position] = nom
-        dashboard[position].fill = remplissage_vert_clair
+        dashboard[position].fill = remplissage_rouge_clair
         dashboard[position].font = kpi_font
         dashboard[position].alignment = Alignment(horizontal="center")
         dashboard[position].border = bordure
@@ -329,4 +330,5 @@ def exporter_excel(df, top_departements, categories):
     workbook.save(chemin_sortie)
 
     print("Fichier Excel créé avec tableau de bord dynamique :", chemin_sortie)
+
     

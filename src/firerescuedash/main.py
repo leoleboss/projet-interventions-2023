@@ -1,7 +1,7 @@
-from chargement import charger_donnees
-from nettoyage import nettoyer_noms_colonnes, convertir_colonnes_numeriques
-from analyse import top_10_departements, grandes_categories
-from export_excel import exporter_excel
+from firerescuedash.data import charger_donnees
+from firerescuedash.nettoyage import nettoyer_noms_colonnes, convertir_colonnes_numeriques
+from firerescuedash.analyse import top_10_departements, grandes_categories
+from firerescuedash.export_excel import exporter_excel
 
 
 # Chemins des fichiers
