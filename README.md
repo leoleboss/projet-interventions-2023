@@ -15,6 +15,7 @@ L'utilisateur peut consulter les principaux indicateurs, filtrer les données et
 ## Données
 
 ### Source
+Les données sont stockées sur MinIO et chargées automatiquement lors de l'exécution du projet.
 
 Les données proviennent du site data.gouv.fr :
 
@@ -170,7 +171,7 @@ projet-interventions-2023/
 
 ### data.py
 
-Charge les données.
+Charge les données depuis MinIO
 
 ### nettoyage.py
 
@@ -182,13 +183,12 @@ Contient les fonctions d'analyse utilisées pendant l'exploration des données.
 
 ### export_excel.py
 
-Construit le fichier Excel :
-
-* feuilles ;
-* formules ;
-* KPI ;
-* graphiques ;
-* tableau de bord.
+Construit le fichier Excel à partir de plusieurs fonctions spécialisées :
+- calculs ;
+- filtres ;
+- KPI ;
+- graphiques ;
+- tableau de bord.
 
 ### main.py
 
