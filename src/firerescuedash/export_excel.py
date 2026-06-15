@@ -45,11 +45,11 @@ def exporter_excel(df):
 
     # Colonnes utilisées pour les calculs
     colonnes_categories = {
-        "Incendies": "incendies",
-        "Secours à personne": "secours_�_personne",
-        "Accidents": "accidents_de_circulation",
-        "Opérations diverses": "op�rations_diverses",
-    }
+    "Incendies": "incendies",
+    "Secours à personne": "secours_à_personne",
+    "Accidents": "accidents_de_circulation",
+    "Opérations diverses": "opérations_diverses",
+}
 
     # Création du classeur
     workbook = Workbook()

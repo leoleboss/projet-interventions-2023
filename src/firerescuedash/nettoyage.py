@@ -19,12 +19,12 @@ def convertir_colonnes_numeriques(df):
     Convertit les colonnes numériques lues comme du texte.
     """
     colonnes_texte = [
-        "zone",
-        "r�gion",
-        "num�ro",
-        "d�partement",
-        "cat�gorie_a"
-    ]
+    "zone",
+    "région",
+    "numéro",
+    "département",
+    "catégorie_a"
+]
 
     for colonne in df.columns:
         if colonne not in colonnes_texte:

@@ -1,15 +1,21 @@
 import pandas as pd
 
 
-def charger_donnees(chemin_fichier):
+URL_DONNEES = (
+    "https://minio.lab.sspcloud.fr/"
+    "leoleboss/Projet_outildedonnees/interventions2023.csv"
+)
+
+
+def charger_donnees():
     """
-    Charge le fichier CSV dans un DataFrame pandas.
+    Charge les données depuis MinIO.
     """
 
     df = pd.read_csv(
-        chemin_fichier,
+        URL_DONNEES,
         sep=";",
-        encoding="utf-8"
+        encoding="latin1"
     )
 
     return df
