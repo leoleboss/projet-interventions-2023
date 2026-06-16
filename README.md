@@ -120,7 +120,7 @@ Les graphiques sont alimentés directement par les cellules de calcul Excel.
 Cloner le projet :
 
 ```bash
-git clone <url_du_projet>
+git clone <https://github.com/leoleboss/projet-interventions-2023.git>
 cd projet-interventions-2023
 ```
 
